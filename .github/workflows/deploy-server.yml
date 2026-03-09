@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - "server-app/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "server-app/**"
 
 jobs:
   deploy:
