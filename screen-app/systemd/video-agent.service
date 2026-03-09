@@ -1,0 +1,17 @@
+[Unit]
+Description=Raa Screen Agent — fetch video URL from API and play fullscreen
+After=network.target display-manager.service
+Wants=display-manager.service
+StartLimitIntervalSec=0
+
+[Service]
+User=leo
+WorkingDirectory=/home/leo/screen-app
+ExecStart=/bin/bash /home/leo/screen-app/start.sh
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical.target

@@ -1,0 +1,14 @@
+services:
+  api:
+    build: .
+    container_name: video-resource-api
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - api_data:/data
+    restart: unless-stopped
+
+volumes:
+  api_data:

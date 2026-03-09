@@ -1,0 +1,36 @@
+name: Deploy server to Hetzner
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "server-app/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync files to Hetzner via rsync
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avzr --delete --exclude='.env' --exclude='__pycache__' --exclude='*.pyc'
+          path: server-app/
+          remote_path: ${{ vars.APP_DIR || '/opt/raa-screen-server' }}
+          remote_host: ${{ secrets.HETZNER_HOST }}
+          remote_user: ${{ secrets.HETZNER_USER }}
+          remote_key: ${{ secrets.HETZNER_SSH_KEY }}
+
+      - name: Rebuild and restart
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ vars.APP_DIR || '/opt/raa-screen-server' }}
+            docker compose up -d --build
+            docker compose ps
