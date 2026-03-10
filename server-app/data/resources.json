@@ -1,0 +1,29 @@
+{
+  "resources": [
+    {
+      "id": "a1b2c3d4-0001-0000-0000-000000000001",
+      "kind": "youtube",
+      "url": "https://www.youtube.com/watch?v=bbgoN8Hoigg",
+      "title": "Eurasian eagle-owl in Riga forests, Latvia",
+      "description": "Ūpis (Bubo bubo) Rīgas mežos — live nest cam by Latvian Fund for Nature & Rīgas meži",
+      "poster_url": "https://ldf.lv/wp-content/uploads/2026/03/Upis-Bubo-bubo-Rigas-mezos-__-Eurasian-eagle-owl-in-Riga-forests-Latvia-8-8-59-screenshot-670x438-c-default.webp"
+    },
+    {
+      "id": "a1b2c3d4-0001-0000-0000-000000000002",
+      "kind": "youtube",
+      "url": "https://www.youtube.com/watch?v=S0oEvktgur4",
+      "title": "White storks in Tukums, Latvia",
+      "description": "Baltie stārķi (Ciconia ciconia) Tukuma novadā — live nest cam by Latvian Fund for Nature & Sadales tīkls",
+      "poster_url": "https://ldf.lv/wp-content/uploads/2023/09/cropped-favicon-300x300.png"
+    },
+    {
+      "id": "a1b2c3d4-0001-0000-0000-000000000003",
+      "kind": "direct",
+      "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      "mime_type": "video/mp4",
+      "title": "Big Buck Bunny",
+      "description": "Test / fallback video"
+    }
+  ],
+  "active_id": "a1b2c3d4-0001-0000-0000-000000000001"
+}
