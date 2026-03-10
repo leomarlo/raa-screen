@@ -90,7 +90,7 @@ def require_admin(x_admin_password: Optional[str]):
     if not ADMIN_PASSWORD:
         raise HTTPException(status_code=500, detail="ADMIN_PASSWORD is not configured")
     if not x_admin_password or x_admin_password != ADMIN_PASSWORD:
-        raise HTTPException(status_code=401, detail="Unauthorized") 
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 # ── Public ────────────────────────────────────────────────────────────────────
