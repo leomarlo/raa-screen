@@ -12,12 +12,16 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
+COPY data/resources.json /defaults/resources.json
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
-# Data dir for resource.json (mounted in compose)
+# Data dir for resources.json (mounted in compose)
 RUN mkdir -p /data
 
 EXPOSE 8000
 
+ENTRYPOINT ["/docker-entrypoint.sh"]
 # Gunicorn with Uvicorn workers for production
 CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "app.main:app", \
      "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "60"]
