@@ -1,14 +1,32 @@
 services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN}
+    depends_on:
+      - api
+    restart: unless-stopped
+
   api:
     build: .
     container_name: video-resource-api
     env_file:
       - .env
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - api_data:/data
     restart: unless-stopped
 
 volumes:
   api_data:
+  caddy_data:
+  caddy_config:
