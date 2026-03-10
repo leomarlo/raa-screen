@@ -36,5 +36,6 @@ jobs:
           script: |
             set -e
             cd ${{ vars.APP_DIR || '/opt/raa-screen-server' }}
-            docker compose up -d --build
+            docker rm -f caddy 2>/dev/null || true
+            docker compose up -d --build --remove-orphans
             docker compose ps
