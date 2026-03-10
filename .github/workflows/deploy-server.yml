@@ -1,10 +1,6 @@
 name: Deploy server to Hetzner
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "server-app/**"
   pull_request:
     branches: [main]
     paths:

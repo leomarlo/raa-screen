@@ -112,6 +112,18 @@ def get_active_resource():
     return MediaResource(**_DEFAULT_RESOURCE)
 
 
+@app.get("/resources")
+def list_resources_public():
+    """Returns all resources and the active_id. Public, read-only."""
+    store = load_store()
+    active_id = store.get("active_id")
+    resources = store.get("resources", [])
+    if not resources:
+        resources = [_DEFAULT_RESOURCE]
+        active_id = _DEFAULT_RESOURCE["id"]
+    return {"resources": resources, "active_id": active_id}
+
+
 # ── Admin dashboard ───────────────────────────────────────────────────────────
 
 @app.get("/admin", response_class=HTMLResponse, include_in_schema=False)
