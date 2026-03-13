@@ -61,7 +61,14 @@ def fetch_resource() -> Tuple[Optional[str], Optional[str]]:
 def start_player(url: str, kind: str) -> subprocess.Popen:
     env = base_env()
 
-    if kind in ("direct", "hls", "youtube"):
+    if kind == "youtube":
+        cmd = [
+            "mpv",
+            "--fullscreen",
+            "--osd-level=0",
+            url,
+        ]
+    elif kind in ("direct", "hls"):
         cmd = [
             "cvlc",
             "--vout", "x11",
@@ -99,7 +106,7 @@ def start_player(url: str, kind: str) -> subprocess.Popen:
 
 
 def stop_player(proc: Optional[subprocess.Popen]) -> None:
-    for name in ("cvlc", "vlc", "feh", "chromium"):
+    for name in ("cvlc", "vlc", "mpv", "feh", "chromium"):
         subprocess.run(["pkill", "-f", name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if proc and proc.poll() is None:
         try:

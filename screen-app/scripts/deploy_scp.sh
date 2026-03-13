@@ -28,8 +28,11 @@ ssh "${PI_USER}@${PI_HOST}" "
     .venv/bin/pip install -q -r requirements.txt
 "
 
-echo "[3/3] Restarting service..."
+echo "[3/3] Installing service file and restarting..."
 ssh "${PI_USER}@${PI_HOST}" "
+    sudo cp ${REMOTE_DIR}/systemd/video-agent.service /etc/systemd/system/video-agent.service
+    sudo systemctl daemon-reload
+    sudo systemctl enable video-agent.service
     sudo systemctl restart video-agent.service
     sudo systemctl status video-agent.service --no-pager
 "
