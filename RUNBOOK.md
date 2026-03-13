@@ -53,6 +53,14 @@ journalctl -u video-agent.service -f
 
 # Check status
 sudo systemctl status video-agent.service
+
+# If service doesn't start after reboot (re-registers and starts it)
+sudo systemctl daemon-reload
+sudo systemctl enable video-agent.service
+sudo systemctl start video-agent.service
+
+# Check start.sh boot log (written before journald takes over)
+cat /tmp/video-agent-start.log
 ```
 
 ---

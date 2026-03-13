@@ -18,9 +18,12 @@ if [ -z "${XAUTHORITY:-}" ]; then
     export XAUTHORITY="/home/$(whoami)/.Xauthority"
 fi
 
+# Required for pipewire/pulseaudio (not set in systemd context)
+export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+
 # Wait for the X display to be ready (LightDM may not have started yet at boot)
 echo "[$(date)] waiting for X display ${DISPLAY:-:0}..." >> "$LOG"
-for i in $(seq 1 30); do
+for i in $(seq 1 60); do
     if [ -e "/tmp/.X11-unix/X${DISPLAY#*:}" ] && [ -f "$XAUTHORITY" ]; then
         echo "[$(date)] X display ready after ${i}s" >> "$LOG"
         break
@@ -31,6 +34,7 @@ done
 # Kill any leftover processes and clean up lock files before starting
 pkill -f cvlc      2>/dev/null || true
 pkill -f vlc       2>/dev/null || true
+pkill -f mpv       2>/dev/null || true
 pkill -f feh       2>/dev/null || true
 pkill -f chromium  2>/dev/null || true
 rm -f /tmp/vlc-*.lock 2>/dev/null || true

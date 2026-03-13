@@ -18,6 +18,13 @@
     },
     {
       "id": "a1b2c3d4-0001-0000-0000-000000000003",
+      "kind": "web",
+      "url": "https://raa.space/program",
+      "title": "Raa Program",
+      "description": "raa.space/program — fullscreen web view"
+    },
+    {
+      "id": "a1b2c3d4-0001-0000-0000-000000000004",
       "kind": "direct",
       "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
       "mime_type": "video/mp4",
