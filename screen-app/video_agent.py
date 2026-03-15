@@ -1,30 +1,46 @@
 #!/usr/bin/env python3
 """
 Raa Screen Agent
-Polls the resource API and displays the current resource fullscreen:
-  - direct / hls / youtube  → VLC
-  - image                   → feh
-  - web                     → Chromium kiosk
-Automatically restarts the player if the resource changes or the player crashes.
+Connects to the resource server via WebSocket for instant updates, with
+polling as a fallback. Displays the active resource fullscreen:
+  - youtube          → mpv (via yt-dlp)
+  - direct / hls     → VLC
+  - image            → feh
+  - web              → Chromium kiosk
 """
+import asyncio
+import json
 import os
+import queue
 import signal
 import subprocess
+import threading
 import time
 from typing import Optional, Tuple
+from urllib.parse import urlparse
 
 import requests
+import websockets
 from dotenv import load_dotenv
 
 load_dotenv()
 
-API_URL = os.environ.get("API_URL", "").strip()
-POLL_SECONDS = int(os.environ.get("POLL_SECONDS", "15"))
-DISPLAY = os.environ.get("DISPLAY", ":0")
-XAUTHORITY = os.environ.get("XAUTHORITY", os.path.expanduser("~/.Xauthority"))
+API_URL        = os.environ.get("API_URL", "").strip()
+POLL_SECONDS   = int(os.environ.get("POLL_SECONDS", "15"))
+DISPLAY        = os.environ.get("DISPLAY", ":0")
+XAUTHORITY     = os.environ.get("XAUTHORITY", os.path.expanduser("~/.Xauthority"))
 NETWORK_CACHING_MS = int(os.environ.get("NETWORK_CACHING_MS", "2000"))
 
+# Derive WebSocket URL from API_URL (e.g. https://monitor.raa.space/resource → wss://monitor.raa.space/ws)
+def _ws_url(api_url: str) -> str:
+    parsed = urlparse(api_url)
+    scheme = "wss" if parsed.scheme == "https" else "ws"
+    return f"{scheme}://{parsed.netloc}/ws"
+
+WS_URL = _ws_url(API_URL) if API_URL else ""
+
 _stop = False
+_ws_queue: queue.Queue = queue.Queue()
 
 
 def handle_signal(signum, frame):
@@ -48,10 +64,8 @@ def fetch_resource() -> Tuple[Optional[str], Optional[str]]:
     if not API_URL:
         print("ERROR: API_URL is not set in .env", flush=True)
         return None, None
-
     r = requests.get(API_URL, timeout=10)
     r.raise_for_status()
-
     data = r.json()
     url = data.get("url", "").strip()
     kind = data.get("kind", "direct").strip()
@@ -119,18 +133,72 @@ def stop_player(proc: Optional[subprocess.Popen]) -> None:
                 pass
 
 
-def main():
-    current_url: Optional[str] = None
-    current_kind: Optional[str] = None
-    player_proc: Optional[subprocess.Popen] = None
+# ── WebSocket listener (runs in a background thread) ──────────────────────────
 
-    print(f"[agent] starting — polling {API_URL} every {POLL_SECONDS}s", flush=True)
+async def _ws_listen():
+    while not _stop:
+        try:
+            async with websockets.connect(WS_URL, ping_interval=30) as ws:
+                print(f"[ws] connected to {WS_URL}", flush=True)
+                async for message in ws:
+                    if _stop:
+                        break
+                    try:
+                        data = json.loads(message)
+                        url = data.get("url", "").strip()
+                        kind = data.get("kind", "direct").strip()
+                        if url:
+                            _ws_queue.put((url, kind))
+                            print(f"[ws] push received → [{kind}] {url}", flush=True)
+                    except Exception as e:
+                        print(f"[ws] bad message: {e}", flush=True)
+        except Exception as e:
+            if _stop:
+                break
+            print(f"[ws] disconnected ({e}), retrying in 5s", flush=True)
+            await asyncio.sleep(5)
+
+
+def _start_ws_thread():
+    if not WS_URL:
+        print("[ws] no API_URL set, WebSocket disabled", flush=True)
+        return
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(_ws_listen())
+
+
+# ── Main loop ─────────────────────────────────────────────────────────────────
+
+def main():
+    current_url:  Optional[str] = None
+    current_kind: Optional[str] = None
+    player_proc:  Optional[subprocess.Popen] = None
+
+    # Start WebSocket listener in background
+    ws_thread = threading.Thread(target=_start_ws_thread, daemon=True)
+    ws_thread.start()
+
+    print(f"[agent] starting — polling {API_URL} every {POLL_SECONDS}s, WS {WS_URL}", flush=True)
 
     while not _stop:
+        # 1. Check for instant WebSocket push
+        try:
+            url, kind = _ws_queue.get_nowait()
+            if url != current_url or kind != current_kind:
+                stop_player(player_proc)
+                time.sleep(1)
+                player_proc = start_player(url, kind)
+                current_url = url
+                current_kind = kind
+        except queue.Empty:
+            pass
+
+        # 2. Fallback poll
         try:
             url, kind = fetch_resource()
             if url and (url != current_url or kind != current_kind):
-                print(f"[agent] resource changed → [{kind}] {url}", flush=True)
+                print(f"[agent] poll: resource changed → [{kind}] {url}", flush=True)
                 stop_player(player_proc)
                 time.sleep(1)
                 player_proc = start_player(url, kind)
@@ -139,7 +207,7 @@ def main():
         except Exception as e:
             print(f"[agent] fetch error: {e}", flush=True)
 
-        # Restart player if it crashed
+        # 3. Restart player if it crashed
         if current_url and player_proc and player_proc.poll() is not None:
             print("[agent] player exited unexpectedly, restarting...", flush=True)
             try:

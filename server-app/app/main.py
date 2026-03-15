@@ -3,7 +3,7 @@ import json
 import uuid
 import pathlib
 from typing import Literal, Optional, Dict, Any, List
-from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -30,6 +30,34 @@ _DEFAULT_RESOURCE = {
     "meta": {"note": "Default resource. Add your own via the admin dashboard."},
 }
 
+
+# ── WebSocket connection manager ───────────────────────────────────────────────
+
+class ConnectionManager:
+    def __init__(self):
+        self.active: List[WebSocket] = []
+
+    async def connect(self, ws: WebSocket):
+        await ws.accept()
+        self.active.append(ws)
+        print(f"[ws] client connected ({len(self.active)} total)", flush=True)
+
+    def disconnect(self, ws: WebSocket):
+        self.active.remove(ws)
+        print(f"[ws] client disconnected ({len(self.active)} remaining)", flush=True)
+
+    async def broadcast(self, data: dict):
+        for ws in list(self.active):
+            try:
+                await ws.send_json(data)
+            except Exception:
+                self.active.remove(ws)
+
+
+manager = ConnectionManager()
+
+
+# ── Models ────────────────────────────────────────────────────────────────────
 
 class MediaResource(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -97,7 +125,7 @@ def require_admin(x_admin_password: Optional[str]):
 
 @app.get("/health")
 def health():
-    return {"ok": True, "service": APP_NAME}
+    return {"ok": True, "service": APP_NAME, "ws_clients": len(manager.active)}
 
 
 @app.get("/resource", response_model=MediaResource)
@@ -122,6 +150,16 @@ def list_resources_public():
         resources = [_DEFAULT_RESOURCE]
         active_id = _DEFAULT_RESOURCE["id"]
     return {"resources": resources, "active_id": active_id}
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket):
+    await manager.connect(ws)
+    try:
+        while True:
+            await ws.receive_text()  # keep connection open; ignore client messages
+    except WebSocketDisconnect:
+        manager.disconnect(ws)
 
 
 # ── Admin dashboard ───────────────────────────────────────────────────────────
@@ -160,7 +198,7 @@ def reset_resources(
 
 
 @app.post("/admin/resources", response_model=MediaResource, status_code=201)
-def add_resource(
+async def add_resource(
     req: AddResourceRequest,
     activate: bool = Query(False, description="Also set this resource as active"),
     x_admin_password: Optional[str] = Header(default=None, convert_underscores=True),
@@ -172,12 +210,13 @@ def add_resource(
     store["resources"].append(resource_dict)
     if activate:
         store["active_id"] = resource_dict["id"]
+        await manager.broadcast(resource_dict)
     save_store(store)
     return resource
 
 
 @app.post("/admin/resources/{resource_id}/activate", response_model=MediaResource)
-def activate_resource(
+async def activate_resource(
     resource_id: str,
     x_admin_password: Optional[str] = Header(default=None, convert_underscores=True),
 ):
@@ -187,6 +226,7 @@ def activate_resource(
         if r.get("id") == resource_id:
             store["active_id"] = resource_id
             save_store(store)
+            await manager.broadcast(r)
             return MediaResource(**r)
     raise HTTPException(status_code=404, detail="Resource not found")
 
