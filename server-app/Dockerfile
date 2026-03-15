@@ -24,4 +24,4 @@ EXPOSE 8000
 ENTRYPOINT ["/docker-entrypoint.sh"]
 # Gunicorn with Uvicorn workers for production
 CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "app.main:app", \
-     "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "60"]
+     "--bind", "0.0.0.0:8000", "--workers", "1", "--timeout", "60"]
